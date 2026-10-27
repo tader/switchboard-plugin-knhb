@@ -5,9 +5,18 @@
       "release-type": "node",
       "include-v-in-tag": true,
       "extra-files": [
-        { "type": "json", "path": "plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "openapi.json", "jsonpath": "$.info.version" }
-      ]
+        {
+          "type": "json",
+          "path": "plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "openapi.json",
+          "jsonpath": "$.info.version"
+        }
+      ],
+      "include-component-in-tag": false
     }
   }
 }
