@@ -164,7 +164,7 @@
       "get": {
         "operationId": "getTeamPoule",
         "summary": "Get team schedule, results and poules",
-        "description": "Current Match Center team route. data contains matches, poules and team metadata. For “How did we last play against HDM?”, filter completed matches by opponent and sort by date descending. Follow available poules for previous phases; describe the historical coverage searched. IDs are current numeric IDs, not legacy N-prefixed hockey-timer IDs.",
+        "description": "Returns team/competition metadata, neighbors and data.poules[].matches. Each poule contains the ENTIRE poule schedule, not just the selected team: first filter matches where home.id or away.id equals teamId. Then split upcoming/past by status and date. For historical comparisons, follow neighbors[].poule_id with the same teamId (including previous seasons), filter completed matches against the named opponent and sort newest first. Report the seasons searched. IDs are current numeric IDs, not legacy N-prefixed IDs.",
         "parameters": [
           {
             "name": "pouleId",
@@ -193,6 +193,62 @@
                   "properties": {
                     "data": {
                       "type": "object",
+                      "properties": {
+                        "season_id": {
+                          "type": "integer"
+                        },
+                        "season_name": {
+                          "type": "string"
+                        },
+                        "neighbors": {
+                          "type": "array",
+                          "description": "Other competition phases/seasons for this team. Use each poule_id with the same teamId.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "poule_id": {
+                                "type": "integer"
+                              },
+                              "season_name": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        "poules": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "matches": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/components/schemas/Match"
+                                },
+                                "description": "All poule matches. Filter home.id or away.id to the requested teamId."
+                              },
+                              "standings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": true
+                                }
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        }
+                      },
                       "additionalProperties": true
                     }
                   },
