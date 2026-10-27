@@ -34,6 +34,6 @@ npm run check
 
 Tests cover the v8 signing algorithm, verified JWT identities, session import, refresh rotation, credential boundaries, read-only enforcement and browser extraction. They use mocked responses and synthetic identities. Live anonymous smoke checks are recorded in [API findings](docs/api-findings.md); personal login requires an interactive KNHB account and is not exercised by CI.
 
-Release Please maintains the version and changelog. Every push and PR runs `check`. The release workflow explicitly dispatches that same workflow on Release Please branches so its required check runs without manual workflow approval. `main` requires an up-to-date passing `check`, a PR and resolved conversations, including for administrators; no approving review is required.
+Release Please maintains the version and changelog. Every branch push runs `check`. The release workflow explicitly dispatches that same workflow on Release Please branches so its required check runs without manual workflow approval. `main` requires an up-to-date passing `check`, a PR and resolved conversations, including for administrators; no approving review is required.
 
 This is an unofficial integration using endpoints observed in KNHB’s public web client. KNHB can change its API or authentication; it is not a documented third-party API contract. This repository contains no copied hockey-timer fixtures, personal accounts or credentials.
