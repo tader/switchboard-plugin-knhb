@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "KNHB Match Center",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Read-only integration of the current Match Center API. Authentication is supplied by Switchboard. Endpoints are observed from KNHB’s public web client, not an official stability guarantee."
   },
   "servers": [
