@@ -1,0 +1,32 @@
+name: Release please
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # Dispatch runs without the manual approval applicable to bot-created PR events.
+      # Checks are recorded on the release PR head.
+      - name: Run required CI on Release Please PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh pr list --state open --json headRefName --jq '.[] | select(.headRefName | startswith("release-please--")) | .headRefName' |
+          while IFS= read -r branch; do
+            gh workflow run check.yml --ref "$branch"
+          done

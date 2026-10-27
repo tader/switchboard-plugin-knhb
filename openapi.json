@@ -1,0 +1,486 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KNHB Match Center",
+    "version": "0.1.0",
+    "description": "Read-only integration of the current Match Center API. Authentication is supplied by Switchboard. Endpoints are observed from KNHB’s public web client, not an official stability guarantee."
+  },
+  "servers": [
+    {
+      "url": "https://app.hockeyweerelt.nl"
+    }
+  ],
+  "paths": {
+    "/my-matches": {
+      "get": {
+        "operationId": "getMyMatches",
+        "summary": "Get my matches and duties",
+        "description": "Requires account sign-in. Returns the account’s match feed including provider role and action fields. Check status for upcoming versus past results. This feed may be bounded; use team/poule matches for history. Only report children or referee duties actually returned by KNHB.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Match"
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/favorites": {
+      "get": {
+        "operationId": "getFavorites",
+        "summary": "Get my favorite teams and competitions",
+        "description": "Requires account sign-in. Favorites may refer to a team, competition, club, or international team. Use team.id and team.recent_poule_id to load a favorite team’s matches. Do not treat default favorites as personal favorites.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/clubs": {
+      "get": {
+        "operationId": "listClubs",
+        "summary": "List clubs",
+        "description": "Find clubs by name or city in the returned data. Use federation_reference_id to fetch the club.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/clubs/{clubId}": {
+      "get": {
+        "operationId": "getClub",
+        "summary": "Get club and teams",
+        "description": "Returns club details and teams. Keep field and indoor variants separate. Use the returned numeric team id and recent_poule_id for schedules and results.",
+        "parameters": [
+          {
+            "name": "clubId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/poules/{pouleId}/teams/{teamId}": {
+      "get": {
+        "operationId": "getTeamPoule",
+        "summary": "Get team schedule, results and poules",
+        "description": "Returns team/competition metadata, neighbors and data.poules[].matches. Each poule contains the ENTIRE poule schedule, not just the selected team: first filter matches where home.id or away.id equals teamId. Then split upcoming/past by status and date. For historical comparisons, follow neighbors[].poule_id with the same teamId (including previous seasons), filter completed matches against the named opponent and sort newest first. Report the seasons searched. IDs are current numeric IDs, not legacy N-prefixed IDs.",
+        "parameters": [
+          {
+            "name": "pouleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "season_id": {
+                          "type": "integer"
+                        },
+                        "season_name": {
+                          "type": "string"
+                        },
+                        "neighbors": {
+                          "type": "array",
+                          "description": "Other competition phases/seasons for this team. Use each poule_id with the same teamId.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "poule_id": {
+                                "type": "integer"
+                              },
+                              "season_name": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        },
+                        "poules": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "matches": {
+                                "type": "array",
+                                "items": {
+                                  "$ref": "#/components/schemas/Match"
+                                },
+                                "description": "All poule matches. Filter home.id or away.id to the requested teamId."
+                              },
+                              "standings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": true
+                                }
+                              }
+                            },
+                            "additionalProperties": true
+                          }
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/matches/{matchId}": {
+      "get": {
+        "operationId": "getMatch",
+        "summary": "Get match details",
+        "description": "Read date, location, field, status and available officials before preparing a calendar event. Never invent an end time or assume a scheduled zero score is a played draw.",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/favorites/defaults": {
+      "get": {
+        "operationId": "getDefaultFavorites",
+        "summary": "Get public default favorites",
+        "description": "Public curated defaults. These are not the account’s own favorites.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/favorites/defaults/matches": {
+      "get": {
+        "operationId": "getDefaultMatches",
+        "summary": "Get public default matches",
+        "description": "Public match feed for default favorites; not personalized.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "KNHB response. Preserve additional provider fields.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Match"
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign in or reconnect."
+          },
+          "429": {
+            "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "short_name": {
+            "type": "string"
+          },
+          "hockey_type": {
+            "type": "string"
+          },
+          "federation_reference_id": {
+            "type": "string"
+          },
+          "recent_poule_id": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": true
+      },
+      "Match": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Source timestamp including timezone. Use Europe/Amsterdam for local display; do not invent a time for date-only fixtures."
+          },
+          "status": {
+            "type": "string",
+            "description": "Use status to distinguish results from scheduled/cancelled matches; a scheduled 0–0 is not a result."
+          },
+          "home": {
+            "$ref": "#/components/schemas/Team"
+          },
+          "away": {
+            "$ref": "#/components/schemas/Team"
+          },
+          "score": {
+            "type": "object",
+            "properties": {
+              "home": {
+                "type": "integer"
+              },
+              "away": {
+                "type": "integer"
+              }
+            }
+          },
+          "shootouts": {
+            "type": "object"
+          },
+          "own_team_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "description": "Provider-assigned role for the signed-in account. Do not infer referee duties from team membership."
+          },
+          "role_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_action_required": {
+            "type": "boolean"
+          },
+          "user_action_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poule_id": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "remarks": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

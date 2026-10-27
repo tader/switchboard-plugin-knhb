@@ -1,0 +1,9 @@
+{
+  "id": "knhb",
+  "name": "KNHB Match Center",
+  "version": "0.1.0",
+  "description": "Personal matches, referee duties, favorite teams and historical results from KNHB Match Center.",
+  "main": "index.js",
+  "icon": "icon.svg",
+  "settings": [{ "key": "browserPath", "label": "Chrome or Edge executable (optional)" }]
+}
