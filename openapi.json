@@ -7,7 +7,8 @@
   },
   "servers": [
     {
-      "url": "https://app.hockeyweerelt.nl"
+      "url": "http://knhb.localhost",
+      "description": "Switchboard replaces this with the plugin’s authenticated loopback adapter."
     }
   ],
   "paths": {
@@ -16,23 +17,89 @@
         "operationId": "getMyMatches",
         "summary": "Get my matches and duties",
         "description": "Requires account sign-in. Returns the account’s match feed including provider role and action fields. Check status for upcoming versus past results. This feed may be bounded; use team/poule matches for history. Only report children or referee duties actually returned by KNHB.",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "Use past for completed results (newest first), upcoming for future non-cancelled fixtures (earliest first), or all.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "upcoming",
+                "past"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "opponent",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive opponent name fragment. A team query matches only the opposite team.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive fragment of the actual account role or role_name, for example scheidsrechter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, at most 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 25
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "required": false,
+            "description": "Pass the previous response’s nextToken with exactly the same filters until absent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "KNHB response. Preserve additional provider fields.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Match"
-                      }
-                    }
-                  },
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/MatchPage"
                 }
               }
             }
@@ -163,8 +230,8 @@
     "/poules/{pouleId}/teams/{teamId}": {
       "get": {
         "operationId": "getTeamPoule",
-        "summary": "Get team schedule, results and poules",
-        "description": "Returns team/competition metadata, neighbors and data.poules[].matches. Each poule contains the ENTIRE poule schedule, not just the selected team: first filter matches where home.id or away.id equals teamId. Then split upcoming/past by status and date. For historical comparisons, follow neighbors[].poule_id with the same teamId (including previous seasons), filter completed matches against the named opponent and sort newest first. Report the seasons searched. IDs are current numeric IDs, not legacy N-prefixed IDs.",
+        "summary": "Get team metadata and available seasons",
+        "description": "Returns compact team/competition metadata and neighbors (other phases and previous seasons). Use getTeamMatches for filtered schedules and results. This endpoint omits match arrays and standings to keep discovery small. Follow neighbors[].poule_id with the same teamId for historical coverage. IDs are current numeric IDs, not legacy N-prefixed IDs.",
         "parameters": [
           {
             "name": "pouleId",
@@ -230,19 +297,8 @@
                               "name": {
                                 "type": "string"
                               },
-                              "matches": {
-                                "type": "array",
-                                "items": {
-                                  "$ref": "#/components/schemas/Match"
-                                },
-                                "description": "All poule matches. Filter home.id or away.id to the requested teamId."
-                              },
-                              "standings": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "additionalProperties": true
-                                }
+                              "matchCount": {
+                                "type": "integer"
                               }
                             },
                             "additionalProperties": true
@@ -349,23 +405,89 @@
         "operationId": "getDefaultMatches",
         "summary": "Get public default matches",
         "description": "Public match feed for default favorites; not personalized.",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "Use past for completed results (newest first), upcoming for future non-cancelled fixtures (earliest first), or all.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "upcoming",
+                "past"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "opponent",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive opponent name fragment. A team query matches only the opposite team.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive fragment of the actual account role or role_name, for example scheidsrechter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, at most 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 25
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "required": false,
+            "description": "Pass the previous response’s nextToken with exactly the same filters until absent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "KNHB response. Preserve additional provider fields.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Match"
-                      }
-                    }
-                  },
-                  "additionalProperties": true
+                  "$ref": "#/components/schemas/MatchPage"
                 }
               }
             }
@@ -375,6 +497,126 @@
           },
           "429": {
             "description": "Rate limited. Respect Retry-After and retry later; do not loop."
+          }
+        }
+      }
+    },
+    "/teams/{teamId}/poules/{pouleId}/matches": {
+      "get": {
+        "operationId": "getTeamMatches",
+        "summary": "Get filtered team fixtures and past results",
+        "description": "Filters the complete KNHB poule schedule to only this team before returning a compact paginated response. Supports opponent, period, Amsterdam date range and role. For “How did we last play against HDM?”, use period=past, opponent=HDM, limit=1. For coverage across seasons, getTeamPoule returns neighbor poule IDs; query relevant neighbors separately and compare dates. Preserve all filters when following nextToken. A scheduled 0–0 is not a result.",
+        "parameters": [
+          {
+            "name": "pouleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "description": "Use past for completed results (newest first), upcoming for future non-cancelled fixtures (earliest first), or all.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "upcoming",
+                "past"
+              ],
+              "default": "all"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Inclusive local date in Europe/Amsterdam.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "opponent",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive opponent name fragment. A team query matches only the opposite team.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive fragment of the actual account role or role_name, for example scheidsrechter.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size, at most 50.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 25
+            }
+          },
+          {
+            "name": "nextToken",
+            "in": "query",
+            "required": false,
+            "description": "Pass the previous response’s nextToken with exactly the same filters until absent.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching fixtures, total and historical coverage.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filters."
+          },
+          "401": {
+            "description": "Reconnect to KNHB."
+          },
+          "429": {
+            "description": "Rate limited; respect Retry-After."
           }
         }
       }
@@ -480,6 +722,32 @@
           }
         },
         "additionalProperties": true
+      },
+      "MatchPage": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Match"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "nextToken": {
+            "type": "string"
+          },
+          "coverage": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "coverage"
+        ]
       }
     }
   }

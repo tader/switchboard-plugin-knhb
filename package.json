@@ -4,5 +4,5 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
-  "scripts": { "test": "node --test", "check": "node --check index.js && node --check lib/api.js && node --check lib/browser.js && node --test" }
+  "scripts": { "test": "node --test", "check": "node --check index.js && node --check lib/api.js && node --check lib/browser.js && node --check lib/adapter.js && node --test" }
 }

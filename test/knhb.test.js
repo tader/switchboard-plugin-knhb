@@ -87,15 +87,18 @@ test('account refresh uses the captured client and retains rotated refresh token
 });
 
 test('authorization refuses writes and credential forwarding to other origins before network access', async () => {
-  const plugin = setup(ctx);
+  const plugin = await setup(ctx);
+  assert.deepEqual(plugin.services[0].allowedHosts, [new URL(plugin.services[0].baseUrl).host]);
+  assert.equal(plugin.services[0].openapi.servers[0].url, plugin.services[0].baseUrl);
   const auth = plugin.services[0].authMethods[0];
   globalThis.fetch = async () => { throw new Error('must not fetch'); };
-  for (const req of [ { method: 'POST', url: BASE + '/favorites' }, { method: 'GET', url: 'https://evil.invalid/' } ]) {
+  for (const req of [ { method: 'POST', url: plugin.services[0].baseUrl + '/favorites' }, { method: 'GET', url: 'https://evil.invalid/' } ]) {
     await assert.rejects(auth.authorize({ ...req, headers: new Headers() }, { credentials }), /read-only|origin/);
   }
-  const req = { method: 'GET', url: BASE + '/clubs', headers: new Headers() };
+  const req = { method: 'GET', url: plugin.services[0].baseUrl + '/clubs', headers: new Headers() };
   await auth.authorize(req, { credentials });
-  assert.equal(req.headers.get('x-hapi-authorization'), 'device-secret');
+  assert.match(req.headers.get('authorization'), /^Bearer /);
+  assert.equal(req.headers.get('x-hapi-authorization'), null);
   await plugin.dispose();
 });
 
@@ -104,21 +107,26 @@ test('forced public authentication renews the device and signs the retried reque
     assert.equal(url, BASE + '/device/register');
     return reply({ token: 'renewed' });
   };
-  const req = { method: 'GET', url: BASE + '/clubs', headers: new Headers() };
-  const auth = setup(ctx).services[0].authMethods[2];
+  const plugin = await setup(ctx);
+  const req = { method: 'GET', url: plugin.services[0].baseUrl + '/clubs', headers: new Headers() };
+  const auth = plugin.services[0].authMethods[2];
   const result = await auth.authorize(req, { credentials }, { force: true });
-  assert.equal(req.headers.get('x-hapi-authorization'), 'renewed');
+  assert.match(req.headers.get('authorization'), /^Bearer /);
   assert.notEqual(result.credentials.uuid, credentials.uuid);
+  assert.equal(result.credentials.deviceToken, 'renewed');
+  await plugin.dispose();
 });
 
 test('rotated refresh tokens are persisted before failed account validation', async () => {
   const saved = [];
   globalThis.fetch = async () => reply({ refresh_token: 'rotated', id_token: jwt({ exp: now - 1 }) });
-  const auth = setup(ctx).services[0].authMethods[0];
-  await assert.rejects(auth.authorize({ method: 'GET', url: BASE + '/my-matches', headers: new Headers() }, {
+  const plugin = await setup(ctx);
+  const auth = plugin.services[0].authMethods[0];
+  await assert.rejects(auth.authorize({ method: 'GET', url: plugin.services[0].baseUrl + '/my-matches', headers: new Headers() }, {
     credentials: { ...credentials, idToken: jwt(), clientId: CLIENTS[0], refreshToken: 'old', expiresAt: 0, subject: 'person-1' },
   }, { persistCredentials: c => saved.push(c) }), /Invalid or expired/);
   assert.equal(saved[0].refreshToken, 'rotated');
+  await plugin.dispose();
 });
 
 test('browser extraction reads only the KNHB OIDC session on the KNHB origin', () => {
@@ -134,10 +142,11 @@ test('browser extraction reads only the KNHB OIDC session on the KNHB origin', (
 });
 
 test('old cores retain session import and public access without offering broken browser pairing', async () => {
-  const plugin = setup({ settings: {} });
+  const plugin = await setup({ settings: {} });
   const methods = plugin.services[0].authMethods;
   assert.ok(methods[0].unavailable);
   await assert.rejects(methods[0].connect(), /unsupported/);
   await assert.rejects(methods[0].poll({ pending: { id: 'unknown' } }), /expired/);
   assert.equal(methods[1].unavailable, undefined);
+  await plugin.dispose();
 });
