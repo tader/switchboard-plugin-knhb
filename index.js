@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { BASE, connectSession, json, register, refresh, sign, validateIdentity } from './lib/api.js';
 import { openBrowser } from './lib/browser.js';
+import { createAdapter } from './lib/adapter.js';
 import openapi from './openapi.json' with { type: 'json' };
 
-export default function setup(ctx) {
+export default async function setup(ctx) {
+  const adapter = await createAdapter();
   const flows = new Map();
   async function stop(id) {
     const flow = flows.get(id);
@@ -15,7 +17,7 @@ export default function setup(ctx) {
   async function authorize(req, conn, { force, persistCredentials } = {}) {
     // Keep the integration read-only, including arbitrary proxy calls.
     if (req.method.toUpperCase() !== 'GET') throw new Error('The KNHB plugin supports read-only requests.');
-    if (new URL(req.url).origin !== BASE) throw new Error('Unsupported KNHB API origin.');
+    if (new URL(req.url).origin !== adapter.origin) throw new Error('Unsupported KNHB API origin.');
     let credentials = await refresh(conn.credentials, force);
     if (credentials !== conn.credentials) {
       // Persist rotated refresh credentials before any subsequent validation can fail.
@@ -25,14 +27,14 @@ export default function setup(ctx) {
       credentials = { ...credentials, expiresAt: identity.expiresAt };
     }
     if (force) credentials = { ...credentials, ...await register() };
-    for (const [key, value] of Object.entries(sign(req.url, credentials))) req.headers.set(key, value);
+    req.headers.set('authorization', `Bearer ${adapter.grant(new URL(req.url), credentials)}`);
     return { credentials };
   }
   return {
     services: [{
       id: 'knhb', name: 'KNHB Match Center', icon: 'icon.svg',
       description: 'Personal matches, referee duties, favorite teams and historical results.',
-      baseUrl: BASE, allowedHosts: ['app.hockeyweerelt.nl'], openapi,
+      baseUrl: adapter.origin, allowedHosts: [new URL(adapter.origin).host], openapi: { ...openapi, servers: [{ url: adapter.origin }] },
       authMethods: [
         {
           id: 'browser', name: 'Sign in with KNHB',
@@ -77,6 +79,6 @@ export default function setup(ctx) {
         },
       ],
     }],
-    async dispose() { await Promise.all([...flows.keys()].map(stop)); },
+    async dispose() { await Promise.all([...flows.keys()].map(stop)); await adapter.close(); },
   };
 }
