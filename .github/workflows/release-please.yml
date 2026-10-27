@@ -26,7 +26,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh pr list --state open --json headRefName --jq '.[] | select(.headRefName | startswith("release-please--")) | .headRefName' |
-          while IFS= read -r branch; do
+          gh pr list --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("release-please--")) | [.number, .headRefName] | @tsv' |
+          while IFS=$'\t' read -r number branch; do
             gh workflow run check.yml --ref "$branch"
+            # Strict protection can require checks on the generated merge commit.
+            # A CI ref makes that commit dispatchable; refs/pull/N/merge is not.
+            merge_sha=""
+            for attempt in 1 2 3 4 5; do
+              merge_sha=$(gh api "repos/$GH_REPO/pulls/$number" --jq '.merge_commit_sha // empty')
+              if [ -n "$merge_sha" ]; then break; fi
+              sleep 2
+            done
+            if [ -z "$merge_sha" ]; then
+              echo "GitHub has not generated the release PR merge commit. Rerun this workflow."
+              exit 1
+            fi
+            ci_ref="ci/release-pr-$number"
+            if gh api "repos/$GH_REPO/git/ref/heads/$ci_ref" --silent; then
+              gh api --method PATCH "repos/$GH_REPO/git/refs/heads/$ci_ref" -f sha="$merge_sha" -F force=true --silent
+            else
+              gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/heads/$ci_ref" -f sha="$merge_sha" --silent
+            fi
+            gh workflow run check.yml --ref "$ci_ref"
           done
